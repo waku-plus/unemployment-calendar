@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>失業保険 受給中カレンダー・就労記録ツール</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Noto Sans JP -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans JP"', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#2563eb',
+                        secondary: '#475569',
+                        workOver: '#ef4444',   // 4時間以上（就職・就労）: 赤系
+                        workUnder: '#f59e0b',  // 4時間未満（内職・手伝い）: オレンジ系
+                        certDay: '#10b981',    // 認定日: 緑系
+                        activity: '#3b82f6',   // 求職活動: 青系
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* 印刷用スタイル設定 */
+        @media print {
+            body {
+                background-color: white !important;
+                color: black !important;
+                font-size: 11px !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            .print-container {
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            .calendar-grid {
+                border-collapse: collapse !important;
+            }
+            .calendar-cell {
+                min-height: 85px !important;
+                border: 1px solid #94a3b8 !important;
+                page-break-inside: avoid;
+            }
+            /* 背景色を印刷時にも強制表示 */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
+
+        /* カスタムスクロールバー */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
+    <!-- ヘッダー（印刷時は非表示） -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-blue-600 text-white p-2 rounded-lg shadow-sm">
+                    <i class="fa-solid fa-calendar-check text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">失業保険 就労・活動記録カレンダー</h1>
+                    <p class="text-xs text-slate-500 hidden sm:block">失業認定申告書の記入サポートツール（自動保存対応）</p>
+                </div>
+            </div>
+
+            <!-- アクションボタン群 -->
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <button onclick="exportCSV()" class="inline-flex items-center px-3 py-2 border border-slate-300 shadow-sm text-xs sm:text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
+                    <i class="fa-solid fa-file-csv text-emerald-600 mr-1.5 text-base"></i>
+                    <span class="hidden sm:inline">CSV出力</span>
+                    <span class="sm:hidden">CSV</span>
+                </button>
+                <button onclick="printCalendar()" class="inline-flex items-center px-3 py-2 border border-transparent shadow-sm text-xs sm:text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
+                    <i class="fa-solid fa-print mr-1.5 text-base"></i>
+                    <span class="hidden sm:inline">印刷 / PDF保存</span>
+                    <span class="sm:hidden">印刷</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-6 print-container">
+
+        <!-- 印刷用タイトルヘッダー（通常時は非表示） -->
+        <div class="hidden print-only mb-4 border-b-2 border-slate-800 pb-2">
+            <div class="flex justify-between items-end">
+                <div>
+                    <h1 class="text-2xl font-bold">失業認定申告書 補助記録表</h1>
+                    <p class="text-sm text-slate-600 mt-1" id="printPeriodLabel">対象年月: 2026年11月</p>
+                </div>
+                <div class="text-right text-xs text-slate-500">
+                    出力日: <span id="printDateLabel"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- コントロール＆サマリーパネル -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-6">
+            
+            <!-- 年月切り替え & 凡例 -->
+            <div class="lg:col-span-5 bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-3">
+                    <button onclick="changeMonth(-1)" class="p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition no-print" title="前月へ">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <div class="flex items-center space-x-2">
+                        <h2 id="currentMonthDisplay" class="text-xl sm:text-2xl font-bold text-slate-800 tracking-wide">2026年 11月</h2>
+                        <button onclick="goToToday()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-md font-medium transition no-print">今月</button>
+                    </div>
+                    <button onclick="changeMonth(1)" class="p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition no-print" title="翌月へ">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+
+                <!-- 凡例（ハローワーク基準） -->
+                <div class="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-100">
+                    <div class="flex items-center space-x-1.5">
+                        <span class="w-3 h-3 rounded-full bg-red-500 inline-block flex-shrink-0"></span>
+                        <span class="text-slate-700 font-medium">4時間以上 (就職・就労)</span>
+                    </div>
+                    <div class="flex items-center space-x-1.5">
+                        <span class="w-3 h-3 rounded-full bg-amber-500 inline-block flex-shrink-0"></span>
+                        <span class="text-slate-700 font-medium">4時間未満 (内職・手伝い)</span>
+                    </div>
+                    <div class="flex items-center space-x-1.5">
+                        <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block flex-shrink-0"></span>
+                        <span class="text-slate-700 font-medium">失業認定日</span>
+                    </div>
+                    <div class="flex items-center space-x-1.5">
+                        <span class="w-3 h-3 rounded-full bg-blue-500 inline-block flex-shrink-0"></span>
+                        <span class="text-slate-700 font-medium">求職活動 (面接・セミナー等)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 月間集計サマリー（申告書記入用） -->
+            <div class="lg:col-span-7 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-sm font-bold text-slate-700 flex items-center">
+                        <i class="fa-solid fa-calculator text-blue-600 mr-1.5"></i>
+                        <span id="summaryMonthTitle">2026年11月</span>の集計（申告書転記用）
+                    </h3>
+                    <span class="text-xs text-slate-400 no-print">※日付をクリックして記録</span>
+                </div>
+                
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <!-- 4時間以上 -->
+                    <div class="bg-red-50 border border-red-100 rounded-lg p-2.5">
+                        <div class="text-xs text-red-700 font-medium">4時間以上働いた日</div>
+                        <div class="mt-1 flex items-baseline justify-between">
+                            <span class="text-xl font-bold text-red-800" id="sumOver4Days">0</span>
+                            <span class="text-xs text-red-600">日 <span id="sumOver4Hours" class="ml-1">(0h)</span></span>
+                        </div>
+                    </div>
+                    <!-- 4時間未満 -->
+                    <div class="bg-amber-50 border border-amber-100 rounded-lg p-2.5">
+                        <div class="text-xs text-amber-700 font-medium">4時間未満働いた日</div>
+                        <div class="mt-1 flex items-baseline justify-between">
+                            <span class="text-xl font-bold text-amber-800" id="sumUnder4Days">0</span>
+                            <span class="text-xs text-amber-600">日 <span id="sumUnder4Hours" class="ml-1">(0h)</span></span>
+                        </div>
+                    </div>
+                    <!-- 収入合計 -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-lg p-2.5">
+                        <div class="text-xs text-slate-600 font-medium">収入合計 <span class="text-[10px]">(対象日数)</span></div>
+                        <div class="mt-1 flex items-baseline justify-between">
+                            <span class="text-lg font-bold text-slate-800" id="sumIncome">¥0</span>
+                            <span class="text-xs text-slate-500" id="sumIncomeDays">(0日分)</span>
+                        </div>
+                    </div>
+                    <!-- 経費 & 求職活動 -->
+                    <div class="bg-blue-50 border border-blue-100 rounded-lg p-2.5">
+                        <div class="text-xs text-blue-700 font-medium">経費合計 / 活動回数</div>
+                        <div class="mt-1 flex items-baseline justify-between">
+                            <span class="text-sm font-bold text-slate-700" id="sumExpense">¥0</span>
+                            <span class="text-xs font-bold text-blue-700" id="sumActivities">活動 0回</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- カレンダー本体 -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <!-- 曜日ヘッダー -->
+            <div class="grid grid-cols-7 bg-slate-100 border-b border-slate-200 text-center text-xs sm:text-sm font-bold py-2.5">
+                <div class="text-red-600">日</div>
+                <div class="text-slate-700">月</div>
+                <div class="text-slate-700">火</div>
+                <div class="text-slate-700">水</div>
+                <div class="text-slate-700">木</div>
+                <div class="text-slate-700">金</div>
+                <div class="text-blue-600">土</div>
+            </div>
+
+            <!-- 日付グリッド -->
+            <div id="calendarGrid" class="grid grid-cols-7 divide-x divide-y divide-slate-200 calendar-grid">
+                <!-- JavaScriptで動的に生成 -->
+            </div>
+        </div>
+
+        <!-- 印刷時のみ表示される「月間詳細リスト」（カレンダーに入り切らないメモや金額詳細を確認するため） -->
+        <div class="hidden print-only mt-6">
+            <h3 class="text-sm font-bold border-b border-slate-400 pb-1 mb-2">記録詳細一覧</h3>
+            <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                    <tr class="bg-slate-100 border-b border-slate-400">
+                        <th class="p-1.5 border border-slate-300 w-24">日付</th>
+                        <th class="p-1.5 border border-slate-300 w-28">区分</th>
+                        <th class="p-1.5 border border-slate-300 w-20">時間</th>
+                        <th class="p-1.5 border border-slate-300 w-32">収入 (対象日数)</th>
+                        <th class="p-1.5 border border-slate-300 w-24">経費</th>
+                        <th class="p-1.5 border border-slate-300">活動内容・メモ</th>
+                    </tr>
+                </thead>
+                <tbody id="printDetailTableBody">
+                    <!-- JSで動的生成 -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- フッター＆データ管理（印刷時は非表示） -->
+        <div class="mt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4 no-print">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-shield-halved text-emerald-600"></i>
+                <span>入力したデータはご利用のブラウザ内に自動保存されます（外部サーバーには送信されません）。</span>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button onclick="exportBackupJSON()" class="hover:text-slate-800 underline">バックアップ保存(JSON)</button>
+                <label class="hover:text-slate-800 underline cursor-pointer">
+                    復元(JSON)
+                    <input type="file" id="importFile" accept=".json" class="hidden" onchange="importBackupJSON(event)">
+                </label>
+                <button onclick="confirmClearAllData()" class="text-red-500 hover:text-red-700 underline">全データ初期化</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- 日付編集モーダル -->
+    <div id="editModal" class="fixed inset-0 z-50 hidden overflow-y-auto no-print" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end sm:items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <!-- 背景オーバーレイ -->
+            <div class="fixed inset-0 bg-slate-900 bg-opacity-50 transition-opacity" onclick="closeModal()"></div>
+
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <!-- モーダルパネル -->
+            <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full border border-slate-200">
+                <form id="recordForm" onsubmit="saveRecord(event)">
+                    <!-- モーダルヘッダー -->
+                    <div class="bg-slate-50 px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="bg-blue-100 text-blue-700 p-1.5 rounded-lg">
+                                <i class="fa-regular fa-calendar"></i>
+                            </span>
+                            <h3 class="text-lg font-bold text-slate-900" id="modalDateTitle">2026年11月19日 (木)</h3>
+                        </div>
+                        <button type="button" onclick="closeModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                            <i class="fa-solid fa-xmark text-xl"></i>
+                        </button>
+                    </div>
+
+                    <!-- モーダルボディ -->
+                    <div class="px-5 py-4 space-y-5 max-h-[75vh] overflow-y-auto">
+                        <input type="hidden" id="selectedDateKey">
+
+                        <!-- 1. 認定日チェック -->
+                        <div class="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3">
+                            <label class="flex items-center space-x-3 cursor-pointer">
+                                <input type="checkbox" id="isCertDay" class="w-5 h-5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500">
+                                <div>
+                                    <span class="font-bold text-emerald-900 text-sm block">この日は「失業認定日」です</span>
+                                    <span class="text-xs text-emerald-700">ハローワークへ来所し認定を受ける日にチェック</span>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- 2. 就労状況（4時間以上 / 4時間未満） -->
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-2">
+                                <i class="fa-solid fa-briefcase text-slate-400 mr-1"></i> 就労の有無（失業認定申告書 1欄）
+                            </label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="workType" value="none" class="peer sr-only" checked onchange="toggleWorkDetails()">
+                                    <div class="p-2.5 text-center rounded-xl border border-slate-200 peer-checked:border-slate-600 peer-checked:bg-slate-100 font-medium text-xs sm:text-sm text-slate-600 peer-checked:text-slate-900 transition">
+                                        働いていない
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="workType" value="over4" class="peer sr-only" onchange="toggleWorkDetails()">
+                                    <div class="p-2.5 text-center rounded-xl border border-slate-200 peer-checked:border-red-500 peer-checked:bg-red-50 font-bold text-xs sm:text-sm text-slate-600 peer-checked:text-red-700 transition">
+                                        4時間以上<br><span class="text-[10px] font-normal">(就職・就労)</span>
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="workType" value="under4" class="peer sr-only" onchange="toggleWorkDetails()">
+                                    <div class="p-2.5 text-center rounded-xl border border-slate-200 peer-checked:border-amber-500 peer-checked:bg-amber-50 font-bold text-xs sm:text-sm text-slate-600 peer-checked:text-amber-700 transition">
+                                        4時間未満<br><span class="text-[10px] font-normal">(内職・手伝い)</span>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <!-- 具体的な労働時間（働いた場合のみ強調表示） -->
+                            <div id="workTimeContainer" class="mt-3 p-3 bg-slate-50 rounded-xl border border-slate-200 hidden">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                    <label for="workHours" class="text-xs font-bold text-slate-700">具体的な労働時間:</label>
+                                    <div class="flex items-center space-x-2">
+                                        <input type="number" id="workHours" step="0.25" min="0" max="24" placeholder="例: 3.5" class="w-28 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-right">
+                                        <span class="text-sm text-slate-600 font-medium">時間</span>
+                                    </div>
+                                </div>
+                                <p class="text-[11px] text-slate-500 mt-1.5">※休憩時間を除いた実働時間を入力してください（例: 3時間30分 → 3.5）</p>
+                            </div>
+                        </div>
+
+                        <!-- 3. 収入・経費欄（失業認定申告書 2欄） -->
+                        <div class="border-t border-slate-100 pt-4">
+                            <label class="block text-sm font-bold text-slate-700 mb-2">
+                                <i class="fa-solid fa-yen-sign text-slate-400 mr-1"></i> 収入と経費（内職・手伝い等の収入）
+                            </label>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div>
+                                    <label for="incomeAmount" class="block text-xs font-medium text-slate-600 mb-1">収入金額 (円)</label>
+                                    <div class="relative">
+                                        <input type="number" id="incomeAmount" min="0" placeholder="0" class="w-full pl-3 pr-7 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 text-right">
+                                        <span class="absolute right-2.5 top-2 text-xs text-slate-400">円</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label for="incomeDays" class="block text-xs font-medium text-slate-600 mb-1">何日分の収入か</label>
+                                    <div class="relative">
+                                        <input type="number" id="incomeDays" min="0" max="31" placeholder="1" class="w-full pl-3 pr-8 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 text-right">
+                                        <span class="absolute right-2.5 top-2 text-xs text-slate-400">日分</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label for="expenseAmount" class="block text-xs font-medium text-slate-600 mb-1">必要経費 (円)</label>
+                                    <div class="relative">
+                                        <input type="number" id="expenseAmount" min="0" placeholder="0" class="w-full pl-3 pr-7 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 text-right">
+                                        <span class="absolute right-2.5 top-2 text-xs text-slate-400">円</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-1.5">※給与や報酬を受け取った日（または発生した日）に金額と対象日数を記録します。</p>
+                        </div>
+
+                        <!-- 4. 求職活動・予定記入（失業認定申告書 3欄） -->
+                        <div class="border-t border-slate-100 pt-4">
+                            <label class="block text-sm font-bold text-slate-700 mb-2">
+                                <i class="fa-solid fa-person-walking-luggage text-slate-400 mr-1"></i> 求職活動・予定（セミナー・面接・応募等）
+                            </label>
+                            
+                            <!-- クイックタグ選択 -->
+                            <div class="flex flex-wrap gap-1.5 mb-2">
+                                <button type="button" onclick="appendActivityTag('ハローワーク相談')" class="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full transition">+ ハローワーク相談</button>
+                                <button type="button" onclick="appendActivityTag('セミナー受講')" class="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full transition">+ セミナー受講</button>
+                                <button type="button" onclick="appendActivityTag('企業面接')" class="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full transition">+ 企業面接</button>
+                                <button type="button" onclick="appendActivityTag('求人応募')" class="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full transition">+ 求人応募</button>
+                                <button type="button" onclick="appendActivityTag('説明会参加')" class="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full transition">+ 説明会参加</button>
+                            </div>
+
+                            <textarea id="activityMemo" rows="3" placeholder="例: 10:00〜 〇〇株式会社 面接 / 応募書類送付 / 就業先名など" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- モーダルフッター -->
+                    <div class="bg-slate-50 px-5 py-3.5 border-t border-slate-200 flex items-center justify-between">
+                        <button type="button" onclick="deleteCurrentRecord()" id="deleteRecordBtn" class="text-sm text-red-600 hover:text-red-800 font-medium px-2 py-1.5 rounded hover:bg-red-50 transition hidden">
+                            <i class="fa-regular fa-trash-can mr-1"></i>削除
+                        </button>
+                        <div class="flex space-x-2 ml-auto">
+                            <button type="button" onclick="closeModal()" class="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 transition">
+                                キャンセル
+                            </button>
+                            <button type="submit" class="px-5 py-2 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
+                                保存する
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- カスタム確認ダイアログ & トースト通知 -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-800 text-white px-4 py-3 rounded-xl shadow-lg flex items-center space-x-2.5 text-sm no-print">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toastMessage">保存しました</span>
+    </div>
+
+    <div id="confirmDialog" class="fixed inset-0 z-50 hidden overflow-y-auto no-print">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-slate-900 bg-opacity-50" onclick="closeConfirmDialog()"></div>
+            <div class="bg-white rounded-2xl max-w-sm w-full p-6 relative z-10 shadow-xl border border-slate-200">
+                <h4 class="text-lg font-bold text-slate-900 mb-2" id="confirmTitle">確認</h4>
+                <p class="text-sm text-slate-600 mb-5" id="confirmText">本当に実行しますか？</p>
+                <div class="flex justify-end space-x-2">
+                    <button onclick="closeConfirmDialog()" class="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50">キャンセル</button>
+                    <button id="confirmExecuteBtn" class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700">実行する</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 状態管理 & 定数
+        // ==========================================
+        const STORAGE_KEY = 'unemployment_insurance_calendar_v1';
+        let currentDate = new Date();
+        let records = {}; // キー: "YYYY-MM-DD", 値: オブジェクト
+        const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
+
+        // ==========================================
+        // 初期化処理
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', () => {
+            loadRecords();
+            renderCalendar();
+        });
+
+        // ローカルストレージからデータ読み込み
+        function loadRecords() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    records = JSON.parse(saved);
+                }
+            } catch (e) {
+                console.error('データの読み込みに失敗しました:', e);
+                showToast('データの読み込みに失敗しました', 'error');
+            }
+        }
+
+        // ローカルストレージへデータ保存
+        function persistRecords() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+            } catch (e) {
+                console.error('データの保存に失敗しました:', e);
+                showToast('ブラウザへの保存に失敗しました', 'error');
+            }
+        }
+
+        // ==========================================
+        // カレンダー描画ロジック
+        // ==========================================
+        function renderCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth(); // 0-11
+
+            // ヘッダー表示更新
+            const monthStr = `${year}年 ${month + 1}月`;
+            document.getElementById('currentMonthDisplay').textContent = monthStr;
+            document.getElementById('summaryMonthTitle').textContent = `${year}年${month + 1}月`;
+            document.getElementById('printPeriodLabel').textContent = `対象年月: ${year}年 ${month + 1}月`;
+
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = '';
+
+            const firstDayOfMonth = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+            const today = new Date();
+            const todayKey = formatDateKey(today.getFullYear(), today.getMonth() + 1, today.getDate());
+
+            // 1. 前月の余白セル
+            for (let i = 0; i < firstDayOfMonth; i++) {
+                const dayNum = daysInPrevMonth - firstDayOfMonth + i + 1;
+                const cell = createEmptyCell(dayNum);
+                grid.appendChild(cell);
+            }
+
+            // 2. 当月の日付セル
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateKey = formatDateKey(year, month + 1, day);
+                const dayOfWeek = new Date(year, month, day).getDay();
+                const record = records[dateKey] || null;
+                const isToday = (dateKey === todayKey);
+
+                const cell = createDayCell(day, dateKey, dayOfWeek, record, isToday);
+                grid.appendChild(cell);
+            }
+
+            // 3. 翌月の余白セル（7の倍数になるまで埋める）
+            const totalCells = firstDayOfMonth + daysInMonth;
+            const remainingCells = (7 - (totalCells % 7)) % 7;
+            for (let i = 1; i <= remainingCells; i++) {
+                const cell = createEmptyCell(i);
+                grid.appendChild(cell);
+            }
+
+            // 集計サマリーと印刷用テーブルの更新
+            updateMonthlySummary(year, month + 1);
+            updatePrintDetailTable(year, month + 1);
+        }
+
+        // 余白セル生成
+        function createEmptyCell(dayNum) {
+            const div = document.createElement('div');
+            div.className = 'bg-slate-50/60 min-h-[95px] sm:min-h-[115px] p-1.5 text-slate-300 select-none calendar-cell';
+            div.innerHTML = `<span class="text-xs font-medium">${dayNum}</span>`;
+            return div;
+        }
+
+        // 当月日付セル生成
+        function createDayCell(day, dateKey, dayOfWeek, record, isToday) {
+            const div = document.createElement('div');
+            
+            // セルの背景色設定（認定日や就労状況に応じて微調整）
+            let bgClass = 'bg-white hover:bg-blue-50/40';
+            if (record?.isCertDay) {
+                bgClass = 'bg-emerald-50/60 hover:bg-emerald-50';
+            } else if (record?.workType === 'over4') {
+                bgClass = 'bg-red-50/30 hover:bg-red-50/60';
+            } else if (record?.workType === 'under4') {
+                bgClass = 'bg-amber-50/30 hover:bg-amber-50/60';
+            }
+
+            div.className = `${bgClass} min-h-[95px] sm:min-h-[115px] p-1.5 cursor-pointer transition flex flex-col justify-between relative calendar-cell group`;
+            div.onclick = () => openModal(dateKey);
+
+            // 日付数字の色
+            let dayTextColor = 'text-slate-700';
+            if (dayOfWeek === 0) dayTextColor = 'text-red-600';
+            if (dayOfWeek === 6) dayTextColor = 'text-blue-600';
+
+            // 上部ヘッダー（日付 + 認定日バッジ）
+            let headerHTML = `
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs sm:text-sm font-bold ${isToday ? 'bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center shadow-sm' : dayTextColor}">
+                        ${day}
+                    </span>
+            `;
+
+            if (record?.isCertDay) {
+                headerHTML += `
+                    <span class="bg-emerald-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm flex items-center">
+                        <i class="fa-solid fa-stamp mr-0.5 text-[9px]"></i>認定日
+                    </span>
+                `;
+            } else {
+                // ホバー時に追加アイコン表示
+                headerHTML += `<i class="fa-solid fa-plus text-slate-300 opacity-0 group-hover:opacity-100 text-xs transition no-print"></i>`;
+            }
+            headerHTML += `</div>`;
+
+            // コンテンツバッジ群
+            let badgesHTML = `<div class="space-y-1 overflow-hidden flex-grow">`;
+
+            if (record) {
+                // 就労バッジ
+                if (record.workType === 'over4') {
+                    const hrs = record.workHours ? ` (${record.workHours}h)` : '';
+                    badgesHTML += `
+                        <div class="bg-red-100 border border-red-200 text-red-800 text-[10px] sm:text-xs font-bold px-1.5 py-0.5 rounded truncate">
+                            ● 4h以上${hrs}
+                        </div>
+                    `;
+                } else if (record.workType === 'under4') {
+                    const hrs = record.workHours ? ` (${record.workHours}h)` : '';
+                    badgesHTML += `
+                        <div class="bg-amber-100 border border-amber-200 text-amber-800 text-[10px] sm:text-xs font-bold px-1.5 py-0.5 rounded truncate">
+                            ▲ 4h未満${hrs}
+                        </div>
+                    `;
+                }
+
+                // 収入・経費バッジ
+                if (record.incomeAmount > 0 || record.expenseAmount > 0) {
+                    let moneyParts = [];
+                    if (record.incomeAmount > 0) {
+                        const daysStr = record.incomeDays ? `/${record.incomeDays}日分` : '';
+                        moneyParts.push(`収:¥${Number(record.incomeAmount).toLocaleString()}${daysStr}`);
+                    }
+                    if (record.expenseAmount > 0) {
+                        moneyParts.push(`経:¥${Number(record.expenseAmount).toLocaleString()}`);
+                    }
+                    badgesHTML += `
+                        <div class="bg-slate-100 text-slate-700 text-[10px] px-1.5 py-0.5 rounded truncate font-medium">
+                            ${moneyParts.join(' ')}
+                        </div>
+                    `;
+                }
+
+                // 求職活動・メモ
+                if (record.activityMemo && record.activityMemo.trim() !== '') {
+                    badgesHTML += `
+                        <div class="bg-blue-50 border border-blue-100 text-blue-800 text-[10px] px-1.5 py-0.5 rounded line-clamp-2 leading-tight">
+                            ${escapeHTML(record.activityMemo)}
+                        </div>
+                    `;
+                }
+            }
+
+            badgesHTML += `</div>`;
+            div.innerHTML = headerHTML + badgesHTML;
+            return div;
+        }
+
+        // ==========================================
+        // 月間集計 & 印刷用テーブル生成
+        // ==========================================
+        function updateMonthlySummary(year, month) {
+            const prefix = `${year}-${String(month).padStart(2, '0')}-`;
+            
+            let over4Days = 0;
+            let over4Hours = 0;
+            let under4Days = 0;
+            let under4Hours = 0;
+            let totalIncome = 0;
+            let totalIncomeDays = 0;
+            let totalExpense = 0;
+            let activityCount = 0;
+
+            Object.keys(records).forEach(key => {
+                if (key.startsWith(prefix)) {
+                    const r = records[key];
+                    if (r.workType === 'over4') {
+                        over4Days++;
+                        over4Hours += parseFloat(r.workHours) || 0;
+                    } else if (r.workType === 'under4') {
+                        under4Days++;
+                        under4Hours += parseFloat(r.workHours) || 0;
+                    }
+
+                    if (r.incomeAmount > 0) {
+                        totalIncome += parseInt(r.incomeAmount, 10) || 0;
+                        totalIncomeDays += parseInt(r.incomeDays, 10) || 1;
+                    }
+                    if (r.expenseAmount > 0) {
+                        totalExpense += parseInt(r.expenseAmount, 10) || 0;
+                    }
+                    if (r.activityMemo && r.activityMemo.trim() !== '') {
+                        activityCount++;
+                    }
+                }
+            });
+
+            document.getElementById('sumOver4Days').textContent = over4Days;
+            document.getElementById('sumOver4Hours').textContent = `(${over4Hours}h)`;
+            document.getElementById('sumUnder4Days').textContent = under4Days;
+            document.getElementById('sumUnder4Hours').textContent = `(${under4Hours}h)`;
+            document.getElementById('sumIncome').textContent = `¥${totalIncome.toLocaleString()}`;
+            document.getElementById('sumIncomeDays').textContent = `(${totalIncomeDays}日分)`;
+            document.getElementById('sumExpense').textContent = `¥${totalExpense.toLocaleString()}`;
+            document.getElementById('sumActivities').textContent = `活動 ${activityCount}日`;
+        }
+
+        function updatePrintDetailTable(year, month) {
+            const tbody = document.getElementById('printDetailTableBody');
+            tbody.innerHTML = '';
+            const prefix = `${year}-${String(month).padStart(2, '0')}-`;
+
+            const keys = Object.keys(records).filter(k => k.startsWith(prefix)).sort();
+            
+            if (keys.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-2 text-center text-slate-400 border border-slate-300">この月の記録はありません</td></tr>`;
+                return;
+            }
+
+            keys.forEach(key => {
+                const r = records[key];
+                const dateObj = new Date(key);
+                const dayLabel = `${month}/${dateObj.getDate()} (${WEEKDAYS[dateObj.getDay()]})`;
+
+                let typeLabels = [];
+                if (r.isCertDay) typeLabels.push('【認定日】');
+                if (r.workType === 'over4') typeLabels.push('4時間以上');
+                if (r.workType === 'under4') typeLabels.push('4時間未満');
+                if (typeLabels.length === 0) typeLabels.push('-');
+
+                const hoursStr = r.workHours ? `${r.workHours}時間` : '-';
+                const incomeStr = r.incomeAmount > 0 ? `¥${Number(r.incomeAmount).toLocaleString()} (${r.incomeDays || 1}日分)` : '-';
+                const expenseStr = r.expenseAmount > 0 ? `¥${Number(r.expenseAmount).toLocaleString()}` : '-';
+                const memoStr = r.activityMemo ? escapeHTML(r.activityMemo) : '-';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-1.5 border border-slate-300 font-medium">${dayLabel}</td>
+                    <td class="p-1.5 border border-slate-300">${typeLabels.join(' ')}</td>
+                    <td class="p-1.5 border border-slate-300 text-right">${hoursStr}</td>
+                    <td class="p-1.5 border border-slate-300 text-right">${incomeStr}</td>
+                    <td class="p-1.5 border border-slate-300 text-right">${expenseStr}</td>
+                    <td class="p-1.5 border border-slate-300">${memoStr}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ==========================================
+        // 月移動操作
+        // ==========================================
+        function changeMonth(delta) {
+            currentDate.setMonth(currentDate.getMonth() + delta);
+            renderCalendar();
+        }
+
+        function goToToday() {
+            currentDate = new Date();
+            renderCalendar();
+        }
+
+        // ==========================================
+        // モーダル操作 & フォーム処理
+        // ==========================================
+        function openModal(dateKey) {
+            document.getElementById('selectedDateKey').value = dateKey;
+            
+            // 日付タイトル整形
+            const [y, m, d] = dateKey.split('-').map(Number);
+            const dateObj = new Date(y, m - 1, d);
+            const weekday = WEEKDAYS[dateObj.getDay()];
+            document.getElementById('modalDateTitle').textContent = `${y}年${m}月${d}日 (${weekday})`;
+
+            // 既存データがあればフォームにセット
+            const existing = records[dateKey];
+            const deleteBtn = document.getElementById('deleteRecordBtn');
+
+            if (existing) {
+                document.getElementById('isCertDay').checked = !!existing.isCertDay;
+                
+                const radio = document.querySelector(`input[name="workType"][value="${existing.workType || 'none'}"]`);
+                if (radio) radio.checked = true;
+
+                document.getElementById('workHours').value = existing.workHours || '';
+                document.getElementById('incomeAmount').value = existing.incomeAmount || '';
+                document.getElementById('incomeDays').value = existing.incomeDays || '';
+                document.getElementById('expenseAmount').value = existing.expenseAmount || '';
+                document.getElementById('activityMemo').value = existing.activityMemo || '';
+                
+                deleteBtn.classList.remove('hidden');
+            } else {
+                // リセット
+                document.getElementById('recordForm').reset();
+                document.querySelector('input[name="workType"][value="none"]').checked = true;
+                deleteBtn.classList.add('hidden');
+            }
+
+            toggleWorkDetails();
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').classList.add('hidden');
+        }
+
+        // 働いた区分に応じて時間入力欄を表示/非表示
+        function toggleWorkDetails() {
+            const workType = document.querySelector('input[name="workType"]:checked').value;
+            const container = document.getElementById('workTimeContainer');
+            if (workType === 'over4' || workType === 'under4') {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+
+        // クイックタグ追記
+        function appendActivityTag(tagText) {
+            const textarea = document.getElementById('activityMemo');
+            const currentVal = textarea.value.trim();
+            if (currentVal === '') {
+                textarea.value = tagText;
+            } else if (!currentVal.includes(tagText)) {
+                textarea.value = `${currentVal} / ${tagText}`;
+            }
+            textarea.focus();
+        }
+
+        // 記録の保存
+        function saveRecord(e) {
+            e.preventDefault();
+            const dateKey = document.getElementById('selectedDateKey').value;
+            
+            const isCertDay = document.getElementById('isCertDay').checked;
+            const workType = document.querySelector('input[name="workType"]:checked').value;
+            const workHours = workType !== 'none' ? document.getElementById('workHours').value : '';
+            const incomeAmount = parseInt(document.getElementById('incomeAmount').value, 10) || 0;
+            const incomeDays = parseInt(document.getElementById('incomeDays').value, 10) || (incomeAmount > 0 ? 1 : 0);
+            const expenseAmount = parseInt(document.getElementById('expenseAmount').value, 10) || 0;
+            const activityMemo = document.getElementById('activityMemo').value.trim();
+
+            // すべて空の場合はレコードを削除
+            if (!isCertDay && workType === 'none' && incomeAmount === 0 && expenseAmount === 0 && activityMemo === '') {
+                delete records[dateKey];
+            } else {
+                records[dateKey] = {
+                    isCertDay,
+                    workType,
+                    workHours,
+                    incomeAmount,
+                    incomeDays,
+                    expenseAmount,
+                    activityMemo,
+                    updatedAt: new Date().toISOString()
+                };
+            }
+
+            persistRecords();
+            renderCalendar();
+            closeModal();
+            showToast('記録を保存しました');
+        }
+
+        // 特定日の記録削除
+        function deleteCurrentRecord() {
+            const dateKey = document.getElementById('selectedDateKey').value;
+            if (records[dateKey]) {
+                delete records[dateKey];
+                persistRecords();
+                renderCalendar();
+                closeModal();
+                showToast('記録を削除しました');
+            }
+        }
+
+        // ==========================================
+        // 出力・印刷機能（CSV / PDF印刷 / JSONバックアップ）
+        // ==========================================
+        
+        // CSV出力（現在表示中の月、または全期間を選択可能にするが、まずは表示月を出力）
+        function exportCSV() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            const prefix = `${year}-${String(month).padStart(2, '0')}-`;
+
+            const keys = Object.keys(records).filter(k => k.startsWith(prefix)).sort();
+            
+            if (keys.length === 0) {
+                showToast(`${year}年${month}月の出力対象データがありません`, 'warning');
+                return;
+            }
+
+            // BOM付きUTF-8でExcel文字化け防止
+            let csvContent = '\uFEFF';
+            csvContent += '日付,曜日,認定日,就労区分,労働時間(h),収入金額(円),収入対象日数(日分),経費(円),求職活動・予定メモ\n';
+
+            keys.forEach(key => {
+                const r = records[key];
+                const [y, m, d] = key.split('-').map(Number);
+                const weekday = WEEKDAYS[new Date(y, m - 1, d).getDay()];
+                
+                const certStr = r.isCertDay ? '認定日' : '';
+                let workStr = 'なし';
+                if (r.workType === 'over4') workStr = '4時間以上(就職・就労)';
+                if (r.workType === 'under4') workStr = '4時間未満(内職・手伝い)';
+
+                const hours = r.workHours || '';
+                const income = r.incomeAmount || 0;
+                const incDays = r.incomeDays || 0;
+                const expense = r.expenseAmount || 0;
+                // カンマや改行を含むメモをダブルクォートでエスケープ
+                const memo = `"${(r.activityMemo || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`;
+
+                csvContent += `${key},${weekday},${certStr},${workStr},${hours},${income},${incDays},${expense},${memo}\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `失業保険就労記録_${year}年${String(month).padStart(2, '0')}月.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            showToast('CSVファイルをダウンロードしました');
+        }
+
+        // 印刷・PDF保存トリガー
+        function printCalendar() {
+            const now = new Date();
+            document.getElementById('printDateLabel').textContent = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()}`;
+            window.print();
+        }
+
+        // JSONバックアップ保存
+        function exportBackupJSON() {
+            const dataStr = JSON.stringify(records, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            const dateStr = new Date().toISOString().slice(0, 10);
+            link.setAttribute('download', `unemployment_calendar_backup_${dateStr}.json`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            showToast('バックアップファイル(JSON)を保存しました');
+        }
+
+        // JSONバックアップ復元
+        function importBackupJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (typeof imported === 'object' && imported !== null) {
+                        records = { ...records, ...imported };
+                        persistRecords();
+                        renderCalendar();
+                        showToast('バックアップデータを復元・統合しました');
+                    } else {
+                        throw new Error('Invalid JSON format');
+                    }
+                } catch (err) {
+                    showToast('ファイルの読み込みに失敗しました。正しいJSONファイルを選択してください。', 'error');
+                }
+                event.target.value = ''; // リセット
+            };
+            reader.readAsText(file);
+        }
+
+        // 全データ初期化確認
+        function confirmClearAllData() {
+            showConfirm(
+                '全データの初期化',
+                '保存されているすべてのカレンダー記録を削除します。この操作は取り消せません。よろしいですか？',
+                () => {
+                    records = {};
+                    persistRecords();
+                    renderCalendar();
+                    showToast('すべてのデータを初期化しました');
+                }
+            );
+        }
+
+        // ==========================================
+        // ユーティリティ関数
+        // ==========================================
+        function formatDateKey(year, month, day) {
+            return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, tag => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                "'": '&#39;',
+                '"': '&quot;'
+            }[tag]));
+        }
+
+        // トースト通知表示
+        let toastTimeout;
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toastIcon');
+            const msg = document.getElementById('toastMessage');
+
+            msg.textContent = message;
+            if (type === 'error') {
+                icon.className = 'fa-solid fa-circle-exclamation text-red-400';
+            } else if (type === 'warning') {
+                icon.className = 'fa-solid fa-triangle-exclamation text-amber-400';
+            } else {
+                icon.className = 'fa-solid fa-circle-check text-emerald-400';
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        // カスタム確認ダイアログ
+        function showConfirm(title, text, onConfirm) {
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmText').textContent = text;
+            const btn = document.getElementById('confirmExecuteBtn');
+            btn.onclick = () => {
+                onConfirm();
+                closeConfirmDialog();
+            };
+            document.getElementById('confirmDialog').classList.remove('hidden');
+        }
+
+        function closeConfirmDialog() {
+            document.getElementById('confirmDialog').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
