@@ -1,0 +1,900 @@
+<!-- ... existing code ... -->
+            <!-- アクションボタン群 -->
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <button onclick="openSyncModal()" class="inline-flex items-center px-3 py-2 border border-blue-200 shadow-sm text-xs sm:text-sm font-medium rounded-lg text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
+                    <i class="fa-solid fa-cloud-arrow-up mr-1.5 text-base" id="syncStatusIcon"></i>
+                    <span class="hidden sm:inline" id="syncStatusText">クラウド同期設定</span>
+                    <span class="sm:hidden">同期</span>
+                </button>
+                <button onclick="exportCSV()" class="inline-flex items-center px-3 py-2 border border-slate-300 shadow-sm text-xs sm:text-sm font-medium rounded-lg text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">
+<!-- ... existing code ... -->
+        <!-- フッター＆データ管理（印刷時は非表示） -->
+        <div class="mt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4 no-print">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-cloud text-blue-600"></i>
+                <span id="footerSyncInfo">入力したデータはクラウドに自動保存され、PC・iPhone間で同期できます。</span>
+            </div>
+            <div class="flex items-center space-x-3">
+<!-- ... existing code ... -->
+                    <button id="confirmExecuteBtn" class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-bold hover:bg-red-700">実行する</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- クラウド同期設定モーダル -->
+    <div id="syncModal" class="fixed inset-0 z-50 hidden overflow-y-auto no-print">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-slate-900 bg-opacity-50" onclick="closeSyncModal()"></div>
+            <div class="bg-white rounded-2xl max-w-md w-full p-6 relative z-10 shadow-xl border border-slate-200">
+                <div class="flex items-center justify-between mb-4">
+                    <h4 class="text-lg font-bold text-slate-900 flex items-center">
+                        <i class="fa-solid fa-arrows-rotate text-blue-600 mr-2"></i>PC・iPhone クラウド同期設定
+                    </h4>
+                    <button type="button" onclick="closeSyncModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+                
+                <p class="text-xs text-slate-600 mb-4 leading-relaxed">
+                    WindowsとiPhoneで同じ「同期コード」を設定すると、カレンダーの記録が自動で共有・同期されます。
+                </p>
+
+                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 mb-4">
+                    <label class="block text-xs font-bold text-slate-700 mb-1">現在の同期コード（ID）</label>
+                    <div class="flex items-center space-x-2">
+                        <input type="text" id="currentSyncCodeDisplay" readonly class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-mono text-slate-800 select-all">
+                        <button type="button" onclick="copySyncCode()" class="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold whitespace-nowrap transition">
+                            コピー
+                        </button>
+                    </div>
+                    <p class="text-[11px] text-slate-500 mt-1.5">※もう一方の端末でこのコードを入力して「連携する」を押してください。</p>
+                </div>
+
+                <div class="border-t border-slate-100 pt-4">
+                    <label for="inputSyncCode" class="block text-xs font-bold text-slate-700 mb-1">別端末の同期コードを入力して連携</label>
+                    <div class="flex items-center space-x-2">
+                        <input type="text" id="inputSyncCode" placeholder="同期コードを貼り付け" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-blue-500">
+                        <button type="button" onclick="applySyncCode()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold whitespace-nowrap transition">
+                            連携する
+                        </button>
+                    </div>
+                </div>
+
+                <!-- GitHub Pages等 外部ホスティング用設定 -->
+                <div class="border-t border-slate-100 pt-4 mt-4">
+                    <details class="text-xs text-slate-600">
+                        <summary class="font-bold text-slate-700 cursor-pointer hover:text-blue-600 select-none">
+                            <i class="fa-brands fa-github mr-1"></i>GitHub Pages等で使う場合のクラウド接続設定
+                        </summary>
+                        <div class="mt-2 p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                            <p class="text-[11px] leading-relaxed text-slate-500">
+                                GitHub Pages等の外部サーバーで同期するには、無料のFirebaseプロジェクトを作成し、発行された「firebaseConfig」の中身（JSON形式）を貼り付けてください。
+                            </p>
+                            <textarea id="customFirebaseConfigInput" rows="4" placeholder='{"apiKey": "...", "authDomain": "...", "projectId": "..."}' class="w-full p-2 border border-slate-300 rounded-lg text-[11px] font-mono focus:ring-2 focus:ring-blue-500"></textarea>
+                            <div class="flex justify-end space-x-2">
+                                <button type="button" onclick="clearCustomFirebaseConfig()" class="px-2.5 py-1.5 text-slate-500 hover:text-slate-700 text-[11px]">リセット</button>
+                                <button type="button" onclick="saveCustomFirebaseConfig()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-[11px] font-bold">設定を保存して再接続</button>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ==========================================
+        // 状態管理 & 定数
+        // ==========================================
+        const STORAGE_KEY = 'unemployment_insurance_calendar_v1';
+        const SYNC_CODE_KEY = 'unemployment_calendar_sync_code_v1';
+        const CUSTOM_FB_CONFIG_KEY = 'unemployment_calendar_custom_fb_v1';
+        let currentDate = new Date();
+        let records = {}; // キー: "YYYY-MM-DD", 値: オブジェクト
+        const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
+
+        // クラウド同期用変数
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+        let syncCode = '';
+        let unsubscribeSnapshot = null;
+        let isCustomFirebase = false;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'github-hosted-app';
+                syncCode = urlSync.trim();
+                try { localStorage.setItem(SYNC_CODE_KEY, syncCode); } catch(e) {}
+            } else {
+                try {
+                    syncCode = localStorage.getItem(SYNC_CODE_KEY) || '';
+                } catch(e) {}
+            }
+
+            if (!syncCode) {
+                syncCode = 'sync-' + Math.random().toString(36).substring(2, 10) + '-' + Date.now().toString(36).slice(-4);
+                try { localStorage.setItem(SYNC_CODE_KEY, syncCode); } catch(e) {}
+            }
+            updateSyncUI(false);
+        }
+
+        async function initCloudSync() {
+            try {
+                let firebaseConfig = null;
+                const savedCustomConfig = localStorage.getItem(CUSTOM_FB_CONFIG_KEY);
+
+                if (savedCustomConfig) {
+                    firebaseConfig = JSON.parse(savedCustomConfig);
+                    isCustomFirebase = true;
+                } else if (typeof __firebase_config !== 'undefined') {
+                    firebaseConfig = JSON.parse(__firebase_config);
+                    isCustomFirebase = false;
+                } else {
+                    // GitHub Pages等で未設定の場合はローカル保存モードで静かに動作
+                    updateSyncUI(false, '未設定（端末内保存）');
+                    return;
+                }
+
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                if (!isCustomFirebase && typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    const cred = await signInWithCustomToken(auth, __initial_auth_token);
+                    currentUser = cred.user;
+                } else {
+                    const cred = await signInAnonymously(auth);
+                    currentUser = cred.user;
+                }
+
+                startRealtimeListener();
+            } catch (err) {
+                console.error('クラウド同期の初期化エラー:', err);
+                updateSyncUI(false, '接続エラー（端末内保存）');
+                showToast('クラウド接続に失敗しました。設定を確認してください', 'warning');
+            }
+        }
+
+        function startRealtimeListener() {
+            if (!currentUser || !db || !syncCode) return;
+
+            if (unsubscribeSnapshot) {
+                unsubscribeSnapshot();
+            }
+
+            // RULE 1に従ったパブリック共有パス（同じsyncCodeを持つ端末間で同期）
+            const colRef = collection(db, 'artifacts', appId, 'public', 'data', `cal_${syncCode}`);
+            
+            unsubscribeSnapshot = onSnapshot(colRef, (snapshot) => {
+                const cloudRecords = {};
+                snapshot.forEach((docSnap) => {
+                    cloudRecords[docSnap.id] = docSnap.data();
+                });
+
+                // クラウドにデータがある場合、または初回同期完了時
+                if (snapshot.size > 0 || Object.keys(records).length === 0) {
+                    records = cloudRecords;
+                    saveLocalCache();
+                    renderCalendar();
+                } else if (snapshot.size === 0 && Object.keys(records).length > 0) {
+                    // ローカルに既存データがありクラウドが空の場合はアップロード
+                    Object.keys(records).forEach(dateKey => {
+                        saveRecordToCloud(dateKey, records[dateKey]);
+                    });
+                }
+                updateSyncUI(true);
+            }, (error) => {
+                console.error('リアルタイム同期エラー:', error);
+                updateSyncUI(false, '権限エラー（ルール確認）');
+            });
+        }
+
+        function updateSyncUI(isConnected, customStatusText = '') {
+            const icon = document.getElementById('syncStatusIcon');
+            const text = document.getElementById('syncStatusText');
+            const footer = document.getElementById('footerSyncInfo');
+            const displayInput = document.getElementById('currentSyncCodeDisplay');
+
+            if (displayInput) displayInput.value = syncCode;
+
+            if (isConnected) {
+                icon.className = 'fa-solid fa-cloud-check text-emerald-600 mr-1.5 text-base';
+                text.textContent = '同期中';
+                footer.textContent = `クラウド同期有効（ID: ${syncCode}）- Windows・iPhone間で自動共有されます。`;
+            } else {
+                icon.className = 'fa-solid fa-cloud-arrow-up mr-1.5 text-base';
+                text.textContent = customStatusText || 'クラウド同期設定';
+                footer.textContent = '現在は端末内に自動保存されています。PC・iPhoneで同期するには右上の「同期」から設定してください。';
+            }
+        }
+
+        function startRealtimeListener() {
+            if (!currentUser || !db || !syncCode) return;
+
+            if (unsubscribeSnapshot) {
+                unsubscribeSnapshot();
+            }
+
+            // RULE 1に従ったパブリック共有パス（同じsyncCodeを持つ端末間で同期）
+            const colRef = collection(db, 'artifacts', appId, 'public', 'data', `cal_${syncCode}`);
+            
+            unsubscribeSnapshot = onSnapshot(colRef, (snapshot) => {
+                const cloudRecords = {};
+                snapshot.forEach((docSnap) => {
+                    cloudRecords[docSnap.id] = docSnap.data();
+                });
+
+                // クラウドにデータがある場合、または初回同期完了時
+                if (snapshot.size > 0 || Object.keys(records).length === 0) {
+                    records = cloudRecords;
+                    saveLocalCache();
+                    renderCalendar();
+                } else if (snapshot.size === 0 && Object.keys(records).length > 0) {
+                    // ローカルに既存データがありクラウドが空の場合はアップロード
+                    Object.keys(records).forEach(dateKey => {
+                        saveRecordToCloud(dateKey, records[dateKey]);
+                    });
+                }
+                updateSyncUI(true);
+            }, (error) => {
+                console.error('リアルタイム同期エラー:', error);
+                updateSyncUI(false);
+            });
+        }
+
+        function updateSyncUI(isConnected) {
+            const icon = document.getElementById('syncStatusIcon');
+            const text = document.getElementById('syncStatusText');
+            const footer = document.getElementById('footerSyncInfo');
+            const displayInput = document.getElementById('currentSyncCodeDisplay');
+
+            if (displayInput) displayInput.value = syncCode;
+
+            if (isConnected) {
+                icon.className = 'fa-solid fa-cloud-check text-emerald-600 mr-1.5 text-base';
+                text.textContent = '同期中';
+                footer.textContent = `クラウド同期有効（ID: ${syncCode}）- Windows・iPhone間で自動共有されます。`;
+            } else {
+                icon.className = 'fa-solid fa-cloud-arrow-up mr-1.5 text-base';
+                text.textContent = 'クラウド同期設定';
+            }
+        }
+
+        // ローカルキャッシュ読み込み・保存（高速表示＆オフラインバックアップ用）
+        function loadLocalCache() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    records = JSON.parse(saved);
+                }
+            } catch (e) {}
+        }
+
+        function saveLocalCache() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+            } catch (e) {}
+        }
+
+        // クラウドへの個別レコード保存・削除
+        async function saveRecordToCloud(dateKey, data) {
+            if (!currentUser || !db || !syncCode) return;
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', `cal_${syncCode}`, dateKey);
+                await setDoc(docRef, data);
+            } catch (e) {
+                console.error('クラウド保存エラー:', e);
+                showToast('クラウドへの同期に失敗しました', 'error');
+            }
+        }
+
+        async function deleteRecordFromCloud(dateKey) {
+            if (!currentUser || !db || !syncCode) return;
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', `cal_${syncCode}`, dateKey);
+                await deleteDoc(docRef);
+            } catch (e) {
+                console.error('クラウド削除エラー:', e);
+            }
+        }
+
+        // 同期モーダル操作
+        window.openSyncModal = function() {
+            document.getElementById('currentSyncCodeDisplay').value = syncCode;
+            document.getElementById('inputSyncCode').value = '';
+            const savedCustom = localStorage.getItem(CUSTOM_FB_CONFIG_KEY);
+            if (savedCustom) {
+                document.getElementById('customFirebaseConfigInput').value = savedCustom;
+            }
+            document.getElementById('syncModal').classList.remove('hidden');
+        };
+
+        window.saveCustomFirebaseConfig = function() {
+            const raw = document.getElementById('customFirebaseConfigInput').value.trim();
+            if (!raw) {
+                showToast('設定データ（JSON）を入力してください', 'warning');
+                return;
+            }
+            try {
+                // JSオブジェクト形式の貼り付けも簡易的にJSONへ補正してパース試行
+                const normalized = raw.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":').replace(/'/g, '"');
+                const parsed = JSON.parse(normalized);
+                if (!parsed.apiKey || !parsed.projectId) {
+                    throw new Error('apiKeyまたはprojectIdが不足しています');
+                }
+                localStorage.setItem(CUSTOM_FB_CONFIG_KEY, JSON.stringify(parsed));
+                showToast('設定を保存しました。画面を再読み込みします...');
+                setTimeout(() => location.reload(), 1000);
+            } catch (e) {
+                showToast('形式が正しくありません。{"apiKey": "...", ...} の形式で入力してください', 'error');
+            }
+        };
+
+        window.clearCustomFirebaseConfig = function() {
+            localStorage.removeItem(CUSTOM_FB_CONFIG_KEY);
+            document.getElementById('customFirebaseConfigInput').value = '';
+            showToast('カスタム設定をリセットしました。再読み込みします...');
+            setTimeout(() => location.reload(), 1000);
+        };
+
+        window.closeSyncModal = function() {
+            document.getElementById('syncModal').classList.add('hidden');
+        };
+
+        window.copySyncCode = function() {
+            const input = document.getElementById('currentSyncCodeDisplay');
+            input.select();
+            input.setSelectionRange(0, 99999);
+            document.execCommand('copy');
+            showToast('同期コードをコピーしました！もう一方の端末で貼り付けてください');
+        };
+
+        window.applySyncCode = function() {
+            const newCode = document.getElementById('inputSyncCode').value.trim();
+            if (!newCode) {
+                showToast('同期コードを入力してください', 'warning');
+                return;
+            }
+            if (newCode === syncCode) {
+                showToast('すでに同じ同期コードで連携されています', 'warning');
+                return;
+            }
+            syncCode = newCode;
+            try { localStorage.setItem(SYNC_CODE_KEY, syncCode); } catch(e) {}
+            records = {}; // 一旦クリアして新しい同期先のデータを読み込む
+            renderCalendar();
+            startRealtimeListener();
+            closeSyncModal();
+            showToast('同期コードを連携しました！データを読み込みます');
+        };
+
+        // ==========================================
+        // カレンダー描画ロジック
+        // ==========================================
+        function renderCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth(); // 0-indexed
+
+            // ヘッダー年月更新
+            document.getElementById('currentMonthLabel').textContent = `${year}年 ${month + 1}月`;
+            document.getElementById('printMonthTitle').textContent = `${year}年 ${month + 1}月`;
+
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = '';
+
+            // 月の最初の日と最後の日
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const startDayOfWeek = firstDay.getDay(); // 0(日) - 6(土)
+            const totalDays = lastDay.getDate();
+
+            // 前月の空白セル
+            for (let i = 0; i < startDayOfWeek; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'calendar-cell bg-slate-50/70 p-2 text-slate-300';
+                grid.appendChild(emptyCell);
+            }
+
+            // 集計用変数
+            let stats = {
+                over4Days: 0,
+                over4Hours: 0,
+                under4Days: 0,
+                under4Hours: 0,
+                totalIncome: 0,
+                incomeDaysCount: 0,
+                totalExpense: 0,
+                activityDays: 0
+            };
+
+            const today = new Date();
+            const isCurrentMonth = (today.getFullYear() === year && today.getMonth() === month);
+            const monthlyRecordsList = [];
+
+            // 当月の日付セル生成
+            for (let day = 1; day <= totalDays; day++) {
+                const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const dayOfWeek = new Date(year, month, day).getDay();
+                const record = records[dateKey];
+
+                const cell = document.createElement('div');
+                let cellBg = 'bg-white hover:bg-blue-50/40';
+                if (record?.isCertDay) {
+                    cellBg = 'bg-emerald-50/50 hover:bg-emerald-50';
+                }
+                cell.className = `calendar-cell ${cellBg} p-1.5 sm:p-2 cursor-pointer transition flex flex-col justify-between relative group`;
+                cell.onclick = () => openModal(dateKey);
+
+                // 日付ヘッダー（数字 + 認定日バッジ）
+                const topRow = document.createElement('div');
+                topRow.className = 'flex items-center justify-between mb-1';
+
+                const dayNum = document.createElement('span');
+                let numColor = 'text-slate-700';
+                if (dayOfWeek === 0) numColor = 'text-red-500';
+                if (dayOfWeek === 6) numColor = 'text-blue-500';
+
+                if (isCurrentMonth && today.getDate() === day) {
+                    dayNum.className = 'w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shadow-sm';
+                } else {
+                    dayNum.className = `text-xs sm:text-sm font-bold ${numColor}`;
+                }
+                dayNum.textContent = day;
+                topRow.appendChild(dayNum);
+
+                // 認定日バッジ
+                if (record?.isCertDay) {
+                    const certBadge = document.createElement('span');
+                    certBadge.className = 'px-1.5 py-0.5 text-[10px] font-bold bg-emerald-600 text-white rounded shadow-sm leading-none';
+                    certBadge.textContent = '認定日';
+                    topRow.appendChild(certBadge);
+                }
+
+                cell.appendChild(topRow);
+
+                // 記録内容バッジ群
+                const contentArea = document.createElement('div');
+                contentArea.className = 'space-y-1 flex-1 overflow-hidden';
+
+                if (record) {
+                    monthlyRecordsList.push({ dateKey, day, dayOfWeek, ...record });
+
+                    // 就労区分バッジ
+                    if (record.workType === 'over4') {
+                        stats.over4Days++;
+                        const hrs = parseFloat(record.workHours) || 0;
+                        stats.over4Hours += hrs;
+
+                        const badge = document.createElement('div');
+                        badge.className = 'text-[10px] sm:text-xs bg-blue-100 text-blue-800 border border-blue-200 px-1.5 py-0.5 rounded font-medium truncate';
+                        badge.innerHTML = `<i class="fa-solid fa-briefcase mr-1"></i>4h以上${hrs > 0 ? ` (${hrs}h)` : ''}`;
+                        contentArea.appendChild(badge);
+                    } else if (record.workType === 'under4') {
+                        stats.under4Days++;
+                        const hrs = parseFloat(record.workHours) || 0;
+                        stats.under4Hours += hrs;
+
+                        const badge = document.createElement('div');
+                        badge.className = 'text-[10px] sm:text-xs bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-medium truncate';
+                        badge.innerHTML = `<i class="fa-solid fa-clock mr-1"></i>4h未満${hrs > 0 ? ` (${hrs}h)` : ''}`;
+                        contentArea.appendChild(badge);
+                    }
+
+                    // 収入・経費表示
+                    if (record.incomeAmount > 0 || record.expenseAmount > 0) {
+                        const inc = Number(record.incomeAmount) || 0;
+                        const incDays = Number(record.incomeDays) || (inc > 0 ? 1 : 0);
+                        const exp = Number(record.expenseAmount) || 0;
+
+                        stats.totalIncome += inc;
+                        if (inc > 0) stats.incomeDaysCount += incDays;
+                        stats.totalExpense += exp;
+
+                        const moneyBadge = document.createElement('div');
+                        moneyBadge.className = 'text-[10px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded truncate';
+                        let parts = [];
+                        if (inc > 0) parts.push(`収:¥${inc.toLocaleString()}${incDays > 1 ? `(${incDays}日分)` : ''}`);
+                        if (exp > 0) parts.push(`経:¥${exp.toLocaleString()}`);
+                        moneyBadge.textContent = parts.join(' / ');
+                        contentArea.appendChild(moneyBadge);
+                    }
+
+                    // 求職活動・メモ表示
+                    if (record.activityMemo && record.activityMemo.trim() !== '') {
+                        stats.activityDays++;
+                        const memoBadge = document.createElement('div');
+                        memoBadge.className = 'text-[10px] sm:text-xs bg-purple-50 text-purple-800 border border-purple-200 px-1.5 py-0.5 rounded truncate';
+                        memoBadge.innerHTML = `<i class="fa-solid fa-flag mr-1 text-purple-600"></i>${escapeHtml(record.activityMemo)}`;
+                        contentArea.appendChild(memoBadge);
+                    }
+                }
+
+                cell.appendChild(contentArea);
+                grid.appendChild(cell);
+            }
+
+            // 次月の空白セル（7の倍数になるように埋める）
+            const totalCells = startDayOfWeek + totalDays;
+            const remainingCells = (7 - (totalCells % 7)) % 7;
+            for (let i = 0; i < remainingCells; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'calendar-cell bg-slate-50/70 p-2 text-slate-300';
+                grid.appendChild(emptyCell);
+            }
+
+            // 集計パネル更新
+            updateSummaryUI(stats);
+
+            // 印刷用詳細テーブル更新
+            renderPrintDetailsTable(monthlyRecordsList);
+        }
+
+        function updateSummaryUI(stats) {
+            document.getElementById('sumOver4Days').textContent = stats.over4Days;
+            document.getElementById('sumOver4Hours').textContent = Number(stats.over4Hours.toFixed(2));
+            
+            document.getElementById('sumUnder4Days').textContent = stats.under4Days;
+            document.getElementById('sumUnder4Hours').textContent = Number(stats.under4Hours.toFixed(2));
+            
+            document.getElementById('sumIncome').textContent = stats.totalIncome.toLocaleString();
+            document.getElementById('sumIncomeDays').textContent = stats.incomeDaysCount;
+            
+            document.getElementById('sumExpense').textContent = stats.totalExpense.toLocaleString();
+            document.getElementById('sumActivityDays').textContent = stats.activityDays;
+        }
+
+        function renderPrintDetailsTable(list) {
+            const tbody = document.getElementById('printDetailsBody');
+            tbody.innerHTML = '';
+
+            if (list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="border border-slate-300 px-2 py-2 text-center text-slate-500">この月の記録はありません</td></tr>';
+                return;
+            }
+
+            list.forEach(item => {
+                const tr = document.createElement('tr');
+                const weekdayStr = WEEKDAYS[item.dayOfWeek];
+                
+                let workLabel = '-';
+                if (item.workType === 'over4') workLabel = '4時間以上（就職・就労）';
+                if (item.workType === 'under4') workLabel = '4時間未満（内職・手伝い）';
+
+                const hoursStr = item.workHours ? `${item.workHours}時間` : '-';
+                const incomeStr = item.incomeAmount > 0 
+                    ? `¥${Number(item.incomeAmount).toLocaleString()} (${item.incomeDays || 1}日分)` 
+                    : '-';
+                const expenseStr = item.expenseAmount > 0 
+                    ? `¥${Number(item.expenseAmount).toLocaleString()}` 
+                    : '-';
+                
+                let notes = [];
+                if (item.isCertDay) notes.push('【失業認定日】');
+                if (item.activityMemo) notes.push(item.activityMemo);
+
+                tr.innerHTML = `
+                    <td class="border border-slate-300 px-2 py-1 font-medium">${item.day}日 (${weekdayStr})</td>
+                    <td class="border border-slate-300 px-2 py-1">${workLabel}</td>
+                    <td class="border border-slate-300 px-2 py-1 text-right">${hoursStr}</td>
+                    <td class="border border-slate-300 px-2 py-1 text-right">${incomeStr}</td>
+                    <td class="border border-slate-300 px-2 py-1 text-right">${expenseStr}</td>
+                    <td class="border border-slate-300 px-2 py-1">${escapeHtml(notes.join(' '))}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // ==========================================
+        // 月移動操作
+        // ==========================================
+        window.changeMonth = function(delta) {
+            currentDate.setMonth(currentDate.getMonth() + delta);
+            renderCalendar();
+        };
+
+        window.goToToday = function() {
+            currentDate = new Date();
+            renderCalendar();
+        };
+
+        // ==========================================
+        // モーダル操作 & フォーム処理
+        // ==========================================
+        window.openModal = function(dateKey) {
+            document.getElementById('selectedDateKey').value = dateKey;
+            
+            // 日付タイトル整形
+            const [y, m, d] = dateKey.split('-').map(Number);
+            const dateObj = new Date(y, m - 1, d);
+            const weekday = WEEKDAYS[dateObj.getDay()];
+            document.getElementById('modalDateTitle').textContent = `${y}年${m}月${d}日 (${weekday})`;
+
+            // 既存データがあればフォームにセット
+            const existing = records[dateKey];
+            const deleteBtn = document.getElementById('deleteRecordBtn');
+
+            if (existing) {
+                document.getElementById('isCertDay').checked = !!existing.isCertDay;
+                
+                const radio = document.querySelector(`input[name="workType"][value="${existing.workType || 'none'}"]`);
+                if (radio) radio.checked = true;
+
+                document.getElementById('workHours').value = existing.workHours || '';
+                document.getElementById('incomeAmount').value = existing.incomeAmount || '';
+                document.getElementById('incomeDays').value = existing.incomeDays || '';
+                document.getElementById('expenseAmount').value = existing.expenseAmount || '';
+                document.getElementById('activityMemo').value = existing.activityMemo || '';
+                
+                deleteBtn.classList.remove('hidden');
+            } else {
+                // リセット
+                document.getElementById('recordForm').reset();
+                document.querySelector('input[name="workType"][value="none"]').checked = true;
+                deleteBtn.classList.add('hidden');
+            }
+
+            toggleWorkDetails();
+            document.getElementById('editModal').classList.remove('hidden');
+        };
+
+        window.closeModal = function() {
+            document.getElementById('editModal').classList.add('hidden');
+        };
+
+        // 働いた区分に応じて時間入力欄を表示/非表示
+        window.toggleWorkDetails = function() {
+            const workType = document.querySelector('input[name="workType"]:checked').value;
+            const container = document.getElementById('workTimeContainer');
+            if (workType === 'over4' || workType === 'under4') {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        };
+
+        // クイックタグ追記
+        window.appendActivityTag = function(tagText) {
+            const textarea = document.getElementById('activityMemo');
+            const currentVal = textarea.value.trim();
+            if (currentVal === '') {
+                textarea.value = tagText;
+            } else if (!currentVal.includes(tagText)) {
+                textarea.value = `${currentVal} / ${tagText}`;
+            }
+            textarea.focus();
+        };
+
+        // 記録の保存
+        window.saveRecord = async function(e) {
+            e.preventDefault();
+            const dateKey = document.getElementById('selectedDateKey').value;
+            
+            const isCertDay = document.getElementById('isCertDay').checked;
+            const workType = document.querySelector('input[name="workType"]:checked').value;
+            const workHours = workType !== 'none' ? document.getElementById('workHours').value : '';
+            const incomeAmount = parseInt(document.getElementById('incomeAmount').value, 10) || 0;
+            const incomeDays = parseInt(document.getElementById('incomeDays').value, 10) || (incomeAmount > 0 ? 1 : 0);
+            const expenseAmount = parseInt(document.getElementById('expenseAmount').value, 10) || 0;
+            const activityMemo = document.getElementById('activityMemo').value.trim();
+
+            // すべて空の場合はレコードを削除
+            if (!isCertDay && workType === 'none' && incomeAmount === 0 && expenseAmount === 0 && activityMemo === '') {
+                delete records[dateKey];
+                saveLocalCache();
+                renderCalendar();
+                closeModal();
+                await deleteRecordFromCloud(dateKey);
+                showToast('記録を削除・同期しました');
+            } else {
+                const recordData = {
+                    isCertDay,
+                    workType,
+                    workHours,
+                    incomeAmount,
+                    incomeDays,
+                    expenseAmount,
+                    activityMemo,
+                    updatedAt: new Date().toISOString()
+                };
+                records[dateKey] = recordData;
+                saveLocalCache();
+                renderCalendar();
+                closeModal();
+                await saveRecordToCloud(dateKey, recordData);
+                showToast('記録を保存・同期しました');
+            }
+        };
+
+        // 特定日の記録削除
+        window.deleteCurrentRecord = async function() {
+            const dateKey = document.getElementById('selectedDateKey').value;
+            if (records[dateKey]) {
+                delete records[dateKey];
+                saveLocalCache();
+                renderCalendar();
+                closeModal();
+                await deleteRecordFromCloud(dateKey);
+                showToast('記録を削除・同期しました');
+            }
+        };
+
+        // ==========================================
+        // 出力・印刷機能（CSV / PDF印刷 / JSONバックアップ）
+        // ==========================================
+        
+        // CSV出力（現在表示中の月）
+        window.exportCSV = function() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            const prefix = `${year}-${String(month).padStart(2, '0')}`;
+
+            // ヘッダー行（BOM付きUTF-8でExcelの文字化け防止）
+            let csvContent = '\uFEFF';
+            csvContent += '日付,曜日,認定日,就労区分,実働時間(h),収入金額(円),収入対象日数(日),経費(円),求職活動・予定メモ\n';
+
+            const lastDay = new Date(year, month, 0).getDate();
+            let hasData = false;
+
+            for (let day = 1; day <= lastDay; day++) {
+                const dateKey = `${prefix}-${String(day).padStart(2, '0')}`;
+                const rec = records[dateKey];
+                if (!rec) continue;
+
+                hasData = true;
+                const weekday = WEEKDAYS[new Date(year, month - 1, day).getDay()];
+                const certStr = rec.isCertDay ? '認定日' : '';
+                let workStr = '';
+                if (rec.workType === 'over4') workStr = '4時間以上';
+                if (rec.workType === 'under4') workStr = '4時間未満';
+
+                const hours = rec.workHours || '';
+                const income = rec.incomeAmount || 0;
+                const incDays = rec.incomeDays || 0;
+                const expense = rec.expenseAmount || 0;
+                const memo = `"${(rec.activityMemo || '').replace(/"/g, '""')}"`;
+
+                csvContent += `${dateKey},${weekday},${certStr},${workStr},${hours},${income},${incDays},${expense},${memo}\n`;
+            }
+
+            if (!hasData) {
+                showToast('出力する記録データがこの月にありません', 'warning');
+                return;
+            }
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `失業保険_就労記録_${year}年${month}月.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('CSVファイルをダウンロードしました');
+        };
+
+        // 印刷・PDF保存トリガー
+        window.printCalendar = function() {
+            const now = new Date();
+            document.getElementById('printDateLabel').textContent = `${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()}`;
+            window.print();
+        };
+
+        // JSONバックアップ保存
+        window.exportBackupJSON = function() {
+            const dataStr = JSON.stringify(records, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const todayStr = new Date().toISOString().slice(0, 10);
+            a.href = url;
+            a.download = `unemployment_calendar_backup_${todayStr}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('バックアップファイル(JSON)を保存しました');
+        };
+
+        // JSONバックアップ復元
+        window.importBackupJSON = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (typeof imported === 'object' && imported !== null) {
+                        records = { ...records, ...imported };
+                        saveLocalCache();
+                        renderCalendar();
+                        // クラウドにも一括反映
+                        for (const key of Object.keys(imported)) {
+                            await saveRecordToCloud(key, imported[key]);
+                        }
+                        showToast('バックアップデータを復元・同期しました');
+                    } else {
+                        throw new Error('Invalid JSON format');
+                    }
+                } catch (err) {
+                    showToast('ファイルの読み込みに失敗しました。正しいJSONファイルを選択してください。', 'error');
+                }
+                event.target.value = ''; // リセット
+            };
+            reader.readAsText(file);
+        };
+
+        // 全データ初期化確認
+        window.confirmClearAllData = function() {
+            showConfirm(
+                '全データの初期化',
+                '保存されているすべてのカレンダー記録を削除します（同期中の端末からも削除されます）。よろしいですか？',
+                async () => {
+                    const keysToDelete = Object.keys(records);
+                    records = {};
+                    saveLocalCache();
+                    renderCalendar();
+                    for (const key of keysToDelete) {
+                        await deleteRecordFromCloud(key);
+                    }
+                    showToast('すべてのデータを初期化しました');
+                }
+            );
+        };
+
+        // ==========================================
+        // ユーティリティ関数
+        // ==========================================
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const msgEl = document.getElementById('toastMessage');
+            const iconEl = document.getElementById('toastIcon');
+
+            msgEl.textContent = message;
+            if (type === 'warning') {
+                iconEl.className = 'fa-solid fa-triangle-exclamation text-amber-400';
+            } else if (type === 'error') {
+                iconEl.className = 'fa-solid fa-circle-xmark text-red-400';
+            } else {
+                iconEl.className = 'fa-solid fa-circle-check text-emerald-400';
+            }
+
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        function showConfirm(title, message, onConfirm) {
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMessage').textContent = message;
+            const dialog = document.getElementById('confirmDialog');
+            const execBtn = document.getElementById('confirmExecuteBtn');
+            
+            execBtn.onclick = () => {
+                closeConfirmDialog();
+                onConfirm();
+            };
+            dialog.classList.remove('hidden');
+        }
+
+        window.closeConfirmDialog = function() {
+            document.getElementById('confirmDialog').classList.add('hidden');
+        };
+    </script>
+</body>
+</html>
